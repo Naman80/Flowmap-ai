@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@flowmap/shared": ["../shared/dist/index.d.ts"]
+    }
+  },
+  "include": ["src"]
+}

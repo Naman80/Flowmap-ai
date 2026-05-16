@@ -1,0 +1,118 @@
+import { Router } from "express";
+import { v4 as uuid } from "uuid";
+import fs from "fs";
+import { getDb } from "../db/client.js";
+import { scanInfra } from "../scanner/infraScanner.js";
+import type { Project, InfraIndex, ApiResponse } from "@flowmap/shared";
+
+export const projectsRouter = Router();
+
+// List all projects
+projectsRouter.get("/", (_req, res) => {
+  const db = getDb();
+  const rows = db.prepare("SELECT * FROM projects ORDER BY created_at DESC").all() as any[];
+  const projects: Project[] = rows.map(dbRowToProject);
+  res.json({ ok: true, data: projects } satisfies ApiResponse<Project[]>);
+});
+
+// Create a project (connect a repo)
+projectsRouter.post("/", (req, res) => {
+  const { name, repo_path } = req.body as { name?: string; repo_path?: string };
+
+  if (!repo_path) {
+    res.status(400).json({ ok: false, error: "repo_path is required" });
+    return;
+  }
+  if (!fs.existsSync(repo_path)) {
+    res.status(400).json({ ok: false, error: `Path does not exist: ${repo_path}` });
+    return;
+  }
+
+  const db = getDb();
+  const id = uuid();
+  const now = new Date().toISOString();
+  const projectName = name ?? repo_path.split("/").at(-1) ?? repo_path;
+
+  try {
+    db.prepare(
+      "INSERT INTO projects (id, name, repo_path, created_at, infra_scanned) VALUES (?, ?, ?, ?, 0)"
+    ).run(id, projectName, repo_path, now);
+  } catch (err: any) {
+    if (err.message?.includes("UNIQUE")) {
+      res.status(409).json({ ok: false, error: "A project with this repo path already exists" });
+      return;
+    }
+    throw err;
+  }
+
+  const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(id) as any;
+  res.status(201).json({ ok: true, data: dbRowToProject(project) } satisfies ApiResponse<Project>);
+});
+
+// Get a single project
+projectsRouter.get("/:id", (req, res) => {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id) as any;
+  if (!row) {
+    res.status(404).json({ ok: false, error: "Project not found" });
+    return;
+  }
+  res.json({ ok: true, data: dbRowToProject(row) });
+});
+
+// Trigger infra scan
+projectsRouter.post("/:id/scan-infra", async (req, res) => {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id) as any;
+  if (!row) {
+    res.status(404).json({ ok: false, error: "Project not found" });
+    return;
+  }
+
+  try {
+    const infra = await scanInfra(row.id, row.repo_path);
+    const now = new Date().toISOString();
+
+    // Upsert infra index
+    db.prepare(`
+      INSERT INTO infra_index (id, project_id, data, scanned_at)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(project_id) DO UPDATE SET data = excluded.data, scanned_at = excluded.scanned_at
+    `).run(uuid(), row.id, JSON.stringify(infra), now);
+
+    // This will fail due to ON CONFLICT needing a unique index — use a simpler approach
+    db.prepare("DELETE FROM infra_index WHERE project_id = ?").run(row.id);
+    db.prepare("INSERT INTO infra_index (id, project_id, data, scanned_at) VALUES (?, ?, ?, ?)")
+      .run(uuid(), row.id, JSON.stringify(infra), now);
+
+    db.prepare(
+      "UPDATE projects SET infra_scanned = 1, last_scanned_at = ? WHERE id = ?"
+    ).run(now, row.id);
+
+    res.json({ ok: true, data: infra } satisfies ApiResponse<InfraIndex>);
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Get infra index for a project
+projectsRouter.get("/:id/infra", (req, res) => {
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM infra_index WHERE project_id = ?").get(req.params.id) as any;
+  if (!row) {
+    res.status(404).json({ ok: false, error: "Infra not scanned yet" });
+    return;
+  }
+  res.json({ ok: true, data: JSON.parse(row.data) as InfraIndex });
+});
+
+function dbRowToProject(row: any): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    repo_path: row.repo_path,
+    created_at: row.created_at,
+    last_scanned_at: row.last_scanned_at ?? null,
+    infra_scanned: Boolean(row.infra_scanned),
+  };
+}
