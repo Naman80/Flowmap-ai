@@ -2,6 +2,7 @@ import { Router } from "express";
 import { v4 as uuid } from "uuid";
 import { getDb } from "../db/client.js";
 import { executeRun, generateRunInput } from "../engine/runner.js";
+import { validate, RunCreateSchema, RunCompleteSchema } from "../lib/validate.js";
 import type { Run, RunEvent, Flow, ApiResponse } from "@flowmap/shared";
 
 export const runsRouter = Router();
@@ -50,17 +51,12 @@ runsRouter.get("/:id/events", (req, res) => {
 });
 
 // Trigger a run
-runsRouter.post("/", async (req, res) => {
+runsRouter.post("/", validate(RunCreateSchema), async (req, res) => {
   const { flow_id, trigger_mode, input } = req.body as {
-    flow_id?: string;
-    trigger_mode?: "ai" | "manual";
+    flow_id: string;
+    trigger_mode: "ai" | "manual";
     input?: unknown;
   };
-
-  if (!flow_id) {
-    res.status(400).json({ ok: false, error: "flow_id is required" });
-    return;
-  }
 
   const db = getDb();
 
@@ -107,8 +103,8 @@ runsRouter.post("/", async (req, res) => {
 });
 
 // Mark a run as completed (called by the target app or manually)
-runsRouter.patch("/:id/complete", (req, res) => {
-  const { status, error } = req.body as { status?: "completed" | "failed"; error?: string };
+runsRouter.patch("/:id/complete", validate(RunCompleteSchema), (req, res) => {
+  const { status, error } = req.body as { status: "completed" | "failed"; error?: string };
   const db = getDb();
   const row = db.prepare("SELECT * FROM runs WHERE id = ?").get(req.params.id) as any;
   if (!row) {

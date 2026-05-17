@@ -2,6 +2,7 @@ import { Router } from "express";
 import { v4 as uuid } from "uuid";
 import { getDb } from "../db/client.js";
 import { buildFlows, buildFlowGraph } from "../scanner/flowBuilder.js";
+import { validate, FlowBuildSchema, FlowGraphBuildSchema, EdgeObserveSchema } from "../lib/validate.js";
 import type { Flow, FlowGraph, Edge, ApiResponse } from "@flowmap/shared";
 
 export const flowsRouter = Router();
@@ -22,13 +23,8 @@ flowsRouter.get("/graph/:projectId", (req, res) => {
 });
 
 // Build flow graph for a project
-flowsRouter.post("/graph/build", async (req, res) => {
-  const { project_id } = req.body as { project_id?: string };
-  if (!project_id) {
-    res.status(400).json({ ok: false, error: "project_id is required" });
-    return;
-  }
-
+flowsRouter.post("/graph/build", validate(FlowGraphBuildSchema), async (req, res) => {
+  const { project_id } = req.body as { project_id: string };
   const db = getDb();
   const flows = (db
     .prepare("SELECT * FROM flows WHERE project_id = ?")
@@ -86,13 +82,8 @@ flowsRouter.get("/:id", (req, res) => {
 });
 
 // Build flows (auto-scan or user-requested)
-flowsRouter.post("/build", async (req, res) => {
-  const { project_id, request } = req.body as { project_id?: string; request?: string };
-  if (!project_id) {
-    res.status(400).json({ ok: false, error: "project_id is required" });
-    return;
-  }
-
+flowsRouter.post("/build", validate(FlowBuildSchema), async (req, res) => {
+  const { project_id, request } = req.body as { project_id: string; request?: string };
   const db = getDb();
   const project = db.prepare("SELECT * FROM projects WHERE id = ?").get(project_id) as any;
   if (!project) {
@@ -143,7 +134,7 @@ flowsRouter.delete("/:id", (req, res) => {
 });
 
 // Toggle edge observation
-flowsRouter.patch("/:flowId/edges/:edgeId/observe", (req, res) => {
+flowsRouter.patch("/:flowId/edges/:edgeId/observe", validate(EdgeObserveSchema), (req, res) => {
   const { observed } = req.body as { observed?: boolean };
   const db = getDb();
   const row = db.prepare("SELECT * FROM flows WHERE id = ?").get(req.params.flowId) as any;

@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Walk up to monorepo root to find .env regardless of CWD
+// Resolve .env from monorepo root regardless of CWD
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
@@ -16,9 +16,35 @@ import { runsRouter } from "./routes/runs.js";
 
 const PORT = Number(process.env.PORT ?? 3001);
 
+// ─── Env validation ───────────────────────────────────────────────────────────
+
+const PROVIDER = (process.env.AI_PROVIDER ?? "anthropic").toLowerCase();
+
+const REQUIRED_KEYS: Record<string, string> = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  gemini: "GEMINI_API_KEY",
+};
+
+function validateEnv(): void {
+  const required = REQUIRED_KEYS[PROVIDER];
+  if (!required) {
+    console.error(`[env] Unknown AI_PROVIDER "${PROVIDER}". Must be: anthropic | openai | gemini`);
+    process.exit(1);
+  }
+  if (!process.env[required]) {
+    console.error(`[env] ${required} is not set. Add it to .env at the repo root.`);
+    process.exit(1);
+  }
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 async function main() {
+  validateEnv();
+
   await initAIProvider();
-  getDb(); // initialise DB + run migrations
+  getDb(); // initialise DB schema + run migrations
 
   const app = express();
   app.use(cors());
@@ -29,15 +55,18 @@ async function main() {
   app.use("/api/runs", runsRouter);
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, version: "0.1.0" });
+    const db = getDb();
+    // Verify DB is reachable
+    const dbOk = !!db.prepare("SELECT 1").get();
+    res.json({ ok: true, version: "0.1.0", ai_provider: PROVIDER, db: dbOk ? "ok" : "error" });
   });
 
   app.listen(PORT, () => {
-    console.log(`FlowMap server running on http://localhost:${PORT}`);
+    console.log(`FlowMap server running on http://localhost:${PORT} (AI: ${PROVIDER})`);
   });
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error("[startup]", err);
   process.exit(1);
 });

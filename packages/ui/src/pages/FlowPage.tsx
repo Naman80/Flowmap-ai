@@ -62,15 +62,24 @@ export default function FlowPage() {
     if (!flowId || !flow) return;
     const edge = flow.edges.find((e) => e.id === edgeId);
     if (!edge) return;
-    await api.setEdgeObserved(flowId, edgeId, !edge.observed);
-    setFlow((f) => {
-      if (!f) return f;
-      return {
-        ...f,
-        edges: f.edges.map((e) => e.id === edgeId ? { ...e, observed: !e.observed } : e),
-      };
-    });
-    setEdges(toRFEdges({ ...flow, edges: flow.edges.map((e) => e.id === edgeId ? { ...e, observed: !e.observed } : e) }));
+
+    const nextObserved = !edge.observed;
+
+    const patchEdges = (f: Flow | null, val: boolean): Flow | null =>
+      f ? { ...f, edges: f.edges.map((e) => e.id === edgeId ? { ...e, observed: val } : e) } : f;
+
+    // Optimistic update
+    setFlow((f) => patchEdges(f, nextObserved));
+    setEdges(toRFEdges(patchEdges(flow, nextObserved)!));
+
+    try {
+      await api.setEdgeObserved(flowId, edgeId, nextObserved);
+    } catch (err: any) {
+      // Rollback on failure
+      setFlow((f) => patchEdges(f, edge.observed));
+      setEdges(toRFEdges(patchEdges(flow, edge.observed)!));
+      setError(`Failed to update edge: ${err.message}`);
+    }
   }
 
   if (!flow) return <div style={styles.loading}>Loading flow…</div>;

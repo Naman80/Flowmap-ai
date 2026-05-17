@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import fs from "fs";
 import { getDb } from "../db/client.js";
 import { scanInfra } from "../scanner/infraScanner.js";
+import { validate, ProjectCreateSchema, ProjectPatchSchema } from "../lib/validate.js";
 import type { Project, InfraIndex, ApiResponse } from "@flowmap/shared";
 
 export const projectsRouter = Router();
@@ -16,13 +17,9 @@ projectsRouter.get("/", (_req, res) => {
 });
 
 // Create a project (connect a repo)
-projectsRouter.post("/", (req, res) => {
-  const { name, repo_path } = req.body as { name?: string; repo_path?: string };
+projectsRouter.post("/", validate(ProjectCreateSchema), (req, res) => {
+  const { name, repo_path } = req.body as { name?: string; repo_path: string };
 
-  if (!repo_path) {
-    res.status(400).json({ ok: false, error: "repo_path is required" });
-    return;
-  }
   if (!fs.existsSync(repo_path)) {
     res.status(400).json({ ok: false, error: `Path does not exist: ${repo_path}` });
     return;
@@ -88,7 +85,7 @@ projectsRouter.post("/:id/scan-infra", async (req, res) => {
 });
 
 // Update execution config (app_url, redis_url)
-projectsRouter.patch("/:id", (req, res) => {
+projectsRouter.patch("/:id", validate(ProjectPatchSchema), (req, res) => {
   const { name, app_url, redis_url } = req.body as {
     name?: string;
     app_url?: string;
