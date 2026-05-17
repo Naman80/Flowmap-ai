@@ -1,107 +1,106 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api/client.ts";
-import type { Project } from "@flowmap/shared";
+import { FolderGit2, ChevronRight, CheckCircle2, Loader2 } from "lucide-react";
+import { useProjects, useCreateProject } from "../hooks/useProjects.ts";
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
   const [repoPath, setRepoPath] = useState("");
   const [name, setName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    api.listProjects().then(setProjects).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const { data: projects, isLoading } = useProjects();
+  const { mutate: createProject, isPending: creating, error: createError } = useCreateProject();
 
-  async function handleCreate(e: React.FormEvent) {
+  function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!repoPath.trim()) return;
-    setCreating(true);
-    setError(null);
-    try {
-      const project = await api.createProject(name.trim() || repoPath.split("/").at(-1)!, repoPath.trim());
-      navigate(`/projects/${project.id}`);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setCreating(false);
-    }
+    createProject(
+      { name: name.trim() || repoPath.split("/").at(-1) || repoPath, repo_path: repoPath.trim() },
+      { onSuccess: (p) => navigate(`/projects/${p.id}`) }
+    );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h1 style={styles.logo}>FlowMap</h1>
-        <p style={styles.tagline}>Make your backend flows visible</p>
+    <div className="min-h-screen px-6 py-12 max-w-2xl mx-auto">
+      {/* Header */}
+      <div className="mb-12">
+        <h1 className="text-3xl font-bold tracking-tight text-[#e5e5e5]">FlowMap</h1>
+        <p className="text-[#666] mt-1 text-sm">Make your backend flows visible</p>
       </div>
 
-      <div style={styles.content}>
-        <form onSubmit={handleCreate} style={styles.form}>
-          <h2 style={styles.formTitle}>Connect a repository</h2>
+      {/* Connect form */}
+      <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-8">
+        <h2 className="text-sm font-semibold text-[#999] uppercase tracking-widest mb-4">
+          Connect a repository
+        </h2>
+        <form onSubmit={handleCreate} className="flex flex-col gap-3">
           <input
-            style={styles.input}
-            placeholder="Repository path (absolute, e.g. /Users/you/myapp)"
+            className="bg-[#0a0a0a] border border-[#333] rounded-lg px-4 py-2.5 text-[#e5e5e5] text-sm outline-none focus:border-[#555] transition-colors placeholder:text-[#444]"
+            placeholder="/Users/you/myapp  (absolute path)"
             value={repoPath}
             onChange={(e) => setRepoPath(e.target.value)}
           />
           <input
-            style={styles.input}
+            className="bg-[#0a0a0a] border border-[#333] rounded-lg px-4 py-2.5 text-[#e5e5e5] text-sm outline-none focus:border-[#555] transition-colors placeholder:text-[#444]"
             placeholder="Project name (optional)"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          {error && <p style={styles.error}>{error}</p>}
-          <button style={styles.btn} type="submit" disabled={creating || !repoPath.trim()}>
+          {createError && (
+            <p className="text-[#f87171] text-xs">{(createError as Error).message}</p>
+          )}
+          <button
+            type="submit"
+            disabled={creating || !repoPath.trim()}
+            className="flex items-center justify-center gap-2 bg-white text-black font-semibold text-sm rounded-lg px-4 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          >
+            {creating ? <Loader2 size={14} className="animate-spin" /> : <FolderGit2 size={14} />}
             {creating ? "Connecting…" : "Connect repo"}
           </button>
         </form>
+      </div>
 
-        {loading ? (
-          <p style={styles.muted}>Loading projects…</p>
-        ) : projects.length === 0 ? (
-          <p style={styles.muted}>No projects yet. Connect a repo above.</p>
-        ) : (
-          <div style={styles.projectList}>
-            <h2 style={styles.sectionTitle}>Projects</h2>
+      {/* Projects list */}
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-[#555] text-sm">
+          <Loader2 size={14} className="animate-spin" />
+          Loading projects…
+        </div>
+      ) : !projects?.length ? (
+        <p className="text-[#444] text-sm">No projects yet. Connect a repo above.</p>
+      ) : (
+        <div>
+          <h2 className="text-xs font-semibold text-[#555] uppercase tracking-widest mb-3">
+            Projects
+          </h2>
+          <div className="flex flex-col gap-2">
             {projects.map((p) => (
               <button
                 key={p.id}
-                style={styles.projectCard}
                 onClick={() => navigate(`/projects/${p.id}`)}
+                className="group bg-[#111] border border-[#1f1f1f] hover:border-[#333] rounded-xl px-5 py-4 text-left transition-colors"
               >
-                <div style={styles.projectName}>{p.name}</div>
-                <div style={styles.projectMeta}>
-                  {p.repo_path}
-                  {p.infra_scanned && <span style={styles.badge}>infra scanned</span>}
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[15px] text-[#e5e5e5]">{p.name}</span>
+                  <ChevronRight
+                    size={16}
+                    className="text-[#333] group-hover:text-[#666] transition-colors"
+                  />
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="font-mono text-[11px] text-[#444] truncate">{p.repo_path}</span>
+                  {p.infra_scanned && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-[#4ade80] shrink-0">
+                      <CheckCircle2 size={10} />
+                      scanned
+                    </span>
+                  )}
                 </div>
               </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", padding: "48px 24px", maxWidth: 720, margin: "0 auto" },
-  header: { marginBottom: 48 },
-  logo: { fontSize: 32, fontWeight: 700, letterSpacing: -1 },
-  tagline: { color: "#888", marginTop: 4 },
-  content: { display: "flex", flexDirection: "column", gap: 40 },
-  form: { display: "flex", flexDirection: "column", gap: 12, background: "#1a1a1a", padding: 24, borderRadius: 12 },
-  formTitle: { fontSize: 16, fontWeight: 600, marginBottom: 4 },
-  input: { background: "#111", border: "1px solid #333", borderRadius: 8, padding: "10px 14px", color: "#e5e5e5", fontSize: 14, outline: "none" },
-  btn: { background: "#fff", color: "#000", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 600, cursor: "pointer", fontSize: 14 },
-  error: { color: "#f87171", fontSize: 13 },
-  muted: { color: "#666", fontSize: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: 600, color: "#888", marginBottom: 8, textTransform: "uppercase", letterSpacing: 1 },
-  projectList: { display: "flex", flexDirection: "column", gap: 8 },
-  projectCard: { background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: 10, padding: "16px 20px", cursor: "pointer", textAlign: "left", color: "inherit", width: "100%" },
-  projectName: { fontWeight: 600, fontSize: 15 },
-  projectMeta: { color: "#666", fontSize: 12, marginTop: 4, display: "flex", gap: 8, alignItems: "center" },
-  badge: { background: "#1d4ed8", color: "#fff", fontSize: 11, padding: "2px 8px", borderRadius: 4 },
-};

@@ -31,6 +31,8 @@ export const api = {
   createProject: (name: string, repo_path: string) =>
     request<Project>("POST", "/projects", { name, repo_path }),
   getProject: (id: string) => request<Project>("GET", `/projects/${id}`),
+  patchProject: (id: string, patch: { name?: string; app_url?: string; redis_url?: string }) =>
+    request<Project>("PATCH", `/projects/${id}`, patch),
   scanInfra: (id: string) => request<InfraIndex>("POST", `/projects/${id}/scan-infra`),
   getInfra: (id: string) => request<InfraIndex>("GET", `/projects/${id}/infra`),
 
@@ -40,6 +42,7 @@ export const api = {
   getFlow: (id: string) => request<Flow>("GET", `/flows/${id}`),
   buildFlows: (project_id: string, req?: string) =>
     request<Flow[]>("POST", "/flows/build", { project_id, request: req }),
+  deleteFlow: (id: string) => request<null>("DELETE", `/flows/${id}`),
   setEdgeObserved: (flowId: string, edgeId: string, observed: boolean) =>
     request("PATCH", `/flows/${flowId}/edges/${edgeId}/observe`, { observed }),
   getFlowGraph: (projectId: string) =>

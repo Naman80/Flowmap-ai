@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import ProjectsPage from "./pages/ProjectsPage.tsx";
 import ProjectPage from "./pages/ProjectPage.tsx";
 import FlowPage from "./pages/FlowPage.tsx";
+import FlowGraphPage from "./pages/FlowGraphPage.tsx";
 
 export default function App() {
   return (
@@ -10,6 +11,7 @@ export default function App() {
       <Route path="/projects" element={<ProjectsPage />} />
       <Route path="/projects/:projectId" element={<ProjectPage />} />
       <Route path="/projects/:projectId/flows/:flowId" element={<FlowPage />} />
+      <Route path="/projects/:projectId/graph" element={<FlowGraphPage />} />
     </Routes>
   );
 }
