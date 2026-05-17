@@ -73,14 +73,6 @@ projectsRouter.post("/:id/scan-infra", async (req, res) => {
     const infra = await scanInfra(row.id, row.repo_path);
     const now = new Date().toISOString();
 
-    // Upsert infra index
-    db.prepare(`
-      INSERT INTO infra_index (id, project_id, data, scanned_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(project_id) DO UPDATE SET data = excluded.data, scanned_at = excluded.scanned_at
-    `).run(uuid(), row.id, JSON.stringify(infra), now);
-
-    // This will fail due to ON CONFLICT needing a unique index — use a simpler approach
     db.prepare("DELETE FROM infra_index WHERE project_id = ?").run(row.id);
     db.prepare("INSERT INTO infra_index (id, project_id, data, scanned_at) VALUES (?, ?, ?, ?)")
       .run(uuid(), row.id, JSON.stringify(infra), now);
@@ -93,6 +85,26 @@ projectsRouter.post("/:id/scan-infra", async (req, res) => {
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message });
   }
+});
+
+// Update execution config (app_url, redis_url)
+projectsRouter.patch("/:id", (req, res) => {
+  const { name, app_url, redis_url } = req.body as {
+    name?: string;
+    app_url?: string;
+    redis_url?: string;
+  };
+  const db = getDb();
+  const row = db.prepare("SELECT * FROM projects WHERE id = ?").get(req.params.id) as any;
+  if (!row) {
+    res.status(404).json({ ok: false, error: "Project not found" });
+    return;
+  }
+  if (name !== undefined) db.prepare("UPDATE projects SET name = ? WHERE id = ?").run(name, row.id);
+  if (app_url !== undefined) db.prepare("UPDATE projects SET app_url = ? WHERE id = ?").run(app_url, row.id);
+  if (redis_url !== undefined) db.prepare("UPDATE projects SET redis_url = ? WHERE id = ?").run(redis_url, row.id);
+  const updated = db.prepare("SELECT * FROM projects WHERE id = ?").get(row.id) as any;
+  res.json({ ok: true, data: dbRowToProject(updated) });
 });
 
 // Get infra index for a project
@@ -114,5 +126,7 @@ function dbRowToProject(row: any): Project {
     created_at: row.created_at,
     last_scanned_at: row.last_scanned_at ?? null,
     infra_scanned: Boolean(row.infra_scanned),
+    app_url: row.app_url ?? null,
+    redis_url: row.redis_url ?? null,
   };
 }

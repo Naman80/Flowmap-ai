@@ -21,17 +21,29 @@ Return a JSON object with this exact shape:
 
 Only return the JSON. No explanation, no markdown fences.`;
 
+// Directory names that are likely to contain infra definitions — scanned first
+const HIGH_PRIORITY_DIRS = new Set([
+  "queues", "queue", "workers", "worker", "jobs", "job",
+  "database", "db", "schema", "schemas", "models", "model",
+  "events", "topics", "pubsub", "config", "prisma",
+]);
+
+// File name patterns that almost certainly contain infra
+const HIGH_PRIORITY_PATTERNS = /queue|worker|job|schema|model|prisma|bull|redis|event|topic/i;
+
 export async function scanInfra(
   projectId: string,
   repoPath: string
 ): Promise<InfraIndex> {
-  const files = collectSourceFiles(repoPath);
-  const fileContents = buildFileContext(repoPath, files);
+  const { high, normal } = collectSourceFiles(repoPath);
+
+  // Always include high-priority files; add normal files until we hit the budget
+  const fileContext = buildFileContext(repoPath, high, normal);
 
   const ai = getAIProvider();
   const raw = await ai.complete(INFRA_SYSTEM_PROMPT, [
-    { role: "user", content: fileContents },
-  ], { json: true, maxTokens: 16000 });
+    { role: "user", content: fileContext },
+  ], { json: true, maxTokens: 8192 });
 
   let parsed: {
     queues: QueueDef[];
@@ -41,9 +53,11 @@ export async function scanInfra(
   };
 
   try {
-    parsed = JSON.parse(raw);
+    // Strip markdown fences if the model adds them despite instructions
+    const cleaned = raw.replace(/^```(?:json)?\s*/m, "").replace(/\s*```$/m, "").trim();
+    parsed = JSON.parse(cleaned);
   } catch {
-    throw new Error(`AI returned invalid JSON during infra scan: ${raw.slice(0, 200)}`);
+    throw new Error(`AI returned invalid JSON during infra scan:\n${raw.slice(0, 400)}`);
   }
 
   return {
@@ -56,11 +70,12 @@ export async function scanInfra(
   };
 }
 
-function collectSourceFiles(repoPath: string): string[] {
-  const results: string[] = [];
-  const ignored = new Set(["node_modules", "dist", ".git", "coverage", ".next", "build"]);
+function collectSourceFiles(repoPath: string): { high: string[]; normal: string[] } {
+  const high: string[] = [];
+  const normal: string[] = [];
+  const ignored = new Set(["node_modules", "dist", ".git", "coverage", ".next", "build", "test", "__tests__", "spec"]);
 
-  function walk(dir: string) {
+  function walk(dir: string, isHighPriority = false) {
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -71,37 +86,59 @@ function collectSourceFiles(repoPath: string): string[] {
     for (const entry of entries) {
       if (ignored.has(entry.name)) continue;
       const fullPath = path.join(dir, entry.name);
+
       if (entry.isDirectory()) {
-        walk(fullPath);
+        const childIsHigh = isHighPriority || HIGH_PRIORITY_DIRS.has(entry.name.toLowerCase());
+        walk(fullPath, childIsHigh);
       } else if (/\.(ts|tsx|js|jsx|prisma)$/.test(entry.name)) {
-        results.push(fullPath);
+        const inHighDir = isHighPriority;
+        const nameMatches = HIGH_PRIORITY_PATTERNS.test(entry.name);
+        if (inHighDir || nameMatches) {
+          high.push(fullPath);
+        } else {
+          normal.push(fullPath);
+        }
       }
     }
   }
 
   walk(repoPath);
-  return results;
+  return { high, normal };
 }
 
-function buildFileContext(repoPath: string, files: string[]): string {
-  const MAX_CHARS = 180_000; // keep well within context limits
+function buildFileContext(repoPath: string, high: string[], normal: string[]): string {
+  const TOTAL_BUDGET = 500_000;
+  const MAX_FILE_CHARS = 25_000; // truncate any single large file
   const parts: string[] = [];
+  const included: string[] = [];
   let total = 0;
 
-  for (const file of files) {
-    const rel = path.relative(repoPath, file);
-    let content: string;
-    try {
-      content = fs.readFileSync(file, "utf-8");
-    } catch {
-      continue;
+  function addFiles(files: string[]) {
+    for (const file of files) {
+      if (total >= TOTAL_BUDGET) break;
+      const rel = path.relative(repoPath, file);
+      let content: string;
+      try {
+        content = fs.readFileSync(file, "utf-8");
+      } catch {
+        continue;
+      }
+      // Truncate oversized files — infra declarations are almost always near the top
+      if (content.length > MAX_FILE_CHARS) {
+        content = content.slice(0, MAX_FILE_CHARS) + "\n// ... (truncated)";
+      }
+      const entry = `\n\n=== ${rel} ===\n${content}`;
+      if (total + entry.length > TOTAL_BUDGET) break;
+      parts.push(entry);
+      included.push(rel);
+      total += entry.length;
     }
-
-    const entry = `\n\n=== ${rel} ===\n${content}`;
-    if (total + entry.length > MAX_CHARS) break;
-    parts.push(entry);
-    total += entry.length;
   }
 
+  addFiles(high);
+  addFiles(normal);
+
+  console.log(`[infra-scan] ${parts.length} files (~${Math.round(total / 1000)}k chars) | high=${high.length} normal=${normal.length}`);
+  console.log(`[infra-scan] Files: ${included.join(", ")}`);
   return parts.join("");
 }

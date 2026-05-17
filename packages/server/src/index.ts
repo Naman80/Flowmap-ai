@@ -1,4 +1,11 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Walk up to monorepo root to find .env regardless of CWD
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+
 import express from "express";
 import cors from "cors";
 import { initAIProvider } from "./ai/provider.js";

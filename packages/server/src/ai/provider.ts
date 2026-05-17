@@ -25,6 +25,9 @@ export async function initAIProvider(): Promise<void> {
   if (providerName === "openai") {
     const { createOpenAIProvider } = await import("./openai.js");
     _provider = createOpenAIProvider();
+  } else if (providerName === "gemini") {
+    const { createGeminiProvider } = await import("./gemini.js");
+    _provider = createGeminiProvider();
   } else {
     const { createAnthropicProvider } = await import("./anthropic.js");
     _provider = createAnthropicProvider();

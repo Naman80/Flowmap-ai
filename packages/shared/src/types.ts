@@ -9,6 +9,8 @@ export type Project = {
   created_at: string;
   last_scanned_at: string | null;
   infra_scanned: boolean;
+  app_url: string | null;   // base URL of the running target app (for webhook triggers)
+  redis_url: string | null; // Redis connection URL (for queue-based triggers)
 };
 
 export type InfraIndex = {

@@ -4,7 +4,23 @@
       "Bash(npm run *)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Read(//Users/namangoel/**)",
+      "Read(//Users/namangoel/.ssh/**)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill -9)",
+      "Bash(curl -s http://localhost:3001/api/health)",
+      "Read(//private/tmp/**)",
+      "Bash(curl -s -X POST http://localhost:3001/api/projects/c5b099d4-404b-4bc2-8f69-237fa98aff80/scan-infra)",
+      "Bash(lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 1 *)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(curl -s \"http://localhost:3001/api/flows?projectId=c5b099d4-404b-4bc2-8f69-237fa98aff80\")",
+      "Bash(read id *)",
+      "Bash(curl -s -X DELETE http://localhost:3001/api/flows/__TRACKED_VAR__)",
+      "Bash(curl -s -X POST http://localhost:3001/api/flows/build -H 'Content-Type: application/json' -d '{ *)"
     ]
   }
 }
