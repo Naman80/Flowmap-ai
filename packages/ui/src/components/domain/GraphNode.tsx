@@ -2,35 +2,37 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { FlowSummary } from "@flowmap/shared";
 import { GitBranch } from "lucide-react";
 
-export default function GraphNode({ data }: NodeProps) {
+export default function GraphNode({ data, selected }: NodeProps) {
   const summary = (data as { summary: FlowSummary }).summary;
 
   const triggerLabel =
-    summary.trigger.type === "queue"
-      ? `queue: ${summary.trigger.queue_name}`
-      : summary.trigger.type === "webhook"
-      ? `${summary.trigger.method} ${summary.trigger.path}`
-      : summary.trigger.type;
+    summary.trigger.type === "queue" ? `queue: ${summary.trigger.queue_name}`
+    : summary.trigger.type === "webhook" ? `${summary.trigger.method} ${summary.trigger.path}`
+    : "manual";
 
   return (
-    <div className="rounded-xl border border-[#333] bg-[#111] min-w-[180px] max-w-[220px] text-xs select-none">
-      <Handle type="target" position={Position.Top} className="!bg-[#333] !w-2 !h-2 !border-0" />
+    <div
+      style={{
+        borderColor: selected ? "#7c3aed" : "#30363d",
+        boxShadow: selected ? "0 0 0 2px #7c3aed33" : "0 4px 20px rgba(0,0,0,0.4)",
+      }}
+      className="rounded-2xl border-2 bg-[#161b22] min-w-[220px] max-w-[260px] overflow-hidden select-none"
+    >
+      <Handle type="target" position={Position.Left} className="!bg-[#444c56] !w-3 !h-3 !border-2 !border-[#161b22]" />
 
-      <div className="px-3 pt-3 pb-1">
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-[#1e293b] text-[#60a5fa] uppercase tracking-wide">
-          <GitBranch size={10} />
-          flow
-        </span>
-      </div>
-
-      <div className="px-3 pb-3">
-        <div className="font-semibold text-[13px] text-[#e5e5e5] leading-tight">{summary.name}</div>
-        <div className="font-mono text-[10px] text-[#555] mt-1.5 truncate" title={triggerLabel}>
-          {triggerLabel}
+      <div className="bg-[#2d1b69] border-b-2 border-[#7c3aed] px-4 py-3 flex items-center gap-2">
+        <div className="w-6 h-6 rounded-lg bg-[#7c3aed] flex items-center justify-center shrink-0">
+          <GitBranch size={12} color="#fff" strokeWidth={2.5} />
         </div>
+        <span className="text-[11px] font-bold text-[#c4b5fd] uppercase tracking-widest">Flow</span>
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-[#333] !w-2 !h-2 !border-0" />
+      <div className="px-4 py-3">
+        <div className="font-semibold text-[14px] text-[#e6edf3] leading-snug mb-1">{summary.name}</div>
+        <div className="font-mono text-[11px] text-[#6e7681] truncate" title={triggerLabel}>{triggerLabel}</div>
+      </div>
+
+      <Handle type="source" position={Position.Right} className="!bg-[#444c56] !w-3 !h-3 !border-2 !border-[#161b22]" />
     </div>
   );
 }

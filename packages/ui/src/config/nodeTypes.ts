@@ -12,10 +12,9 @@ import {
 export interface NodeTypeConfig {
   label: string;
   icon: LucideIcon;
-  /** Hex color used for border + badge background */
   color: string;
-  /** Darker bg for badge */
-  dimColor: string;
+  bgColor: string;
+  textColor: string;
   description: string;
 }
 
@@ -24,49 +23,56 @@ export const NODE_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
     label: "Queue Consumer",
     icon: ArrowDownToLine,
     color: "#7c3aed",
-    dimColor: "#2e1065",
+    bgColor: "#2d1b69",
+    textColor: "#c4b5fd",
     description: "Reads messages from a queue",
   },
   queue_producer: {
     label: "Queue Producer",
     icon: ArrowUpFromLine,
     color: "#7c3aed",
-    dimColor: "#2e1065",
+    bgColor: "#2d1b69",
+    textColor: "#c4b5fd",
     description: "Publishes messages to a queue",
   },
   guard: {
     label: "Guard",
     icon: Shield,
-    color: "#b45309",
-    dimColor: "#431407",
+    color: "#d29922",
+    bgColor: "#271e05",
+    textColor: "#fcd34d",
     description: "Validation or auth gate",
   },
   aggregator: {
     label: "Aggregator",
     icon: Cpu,
-    color: "#0369a1",
-    dimColor: "#082f49",
+    color: "#58a6ff",
+    bgColor: "#0d2137",
+    textColor: "#93c5fd",
     description: "Combines multiple data inputs",
   },
   llm_call: {
     label: "LLM Call",
     icon: Sparkles,
-    color: "#059669",
-    dimColor: "#022c22",
+    color: "#3fb950",
+    bgColor: "#0d2a18",
+    textColor: "#86efac",
     description: "AI model invocation",
   },
   transform: {
     label: "Transform",
     icon: ArrowRightLeft,
-    color: "#4b5563",
-    dimColor: "#111827",
+    color: "#8b949e",
+    bgColor: "#21262d",
+    textColor: "#d1d5db",
     description: "Data transformation step",
   },
   external_api: {
     label: "External API",
     icon: ExternalLink,
-    color: "#be123c",
-    dimColor: "#4c0519",
+    color: "#f85149",
+    bgColor: "#2a0d0d",
+    textColor: "#fca5a5",
     description: "Outbound HTTP call",
   },
 };
@@ -74,8 +80,9 @@ export const NODE_TYPE_CONFIG: Record<string, NodeTypeConfig> = {
 export const DEFAULT_NODE_TYPE_CONFIG: NodeTypeConfig = {
   label: "Node",
   icon: Cpu,
-  color: "#4b5563",
-  dimColor: "#111827",
+  color: "#8b949e",
+  bgColor: "#21262d",
+  textColor: "#d1d5db",
   description: "",
 };
 

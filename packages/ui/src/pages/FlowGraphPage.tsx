@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Wand2, Loader2, AlertCircle } from "lucide-react";
+import { Wand2, Loader2, AlertCircle, ChevronRight } from "lucide-react";
 import type { NodeTypes } from "@xyflow/react";
 import { useFlowGraph, useBuildFlowGraph } from "../hooks/useFlows.ts";
 import FlowCanvas from "../components/domain/FlowCanvas.tsx";
@@ -19,22 +19,22 @@ export default function FlowGraphPage() {
   const rfEdges = graph ? flowGraphToRFEdges(graph) : [];
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen bg-[#0d1117]">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-[#1a1a1a] shrink-0">
-        <div className="flex items-center gap-2 text-xs text-[#555]">
-          <Link to="/projects" className="hover:text-[#888] transition-colors">Projects</Link>
-          <span>/</span>
-          <Link to={`/projects/${projectId}`} className="hover:text-[#888] transition-colors">Project</Link>
-          <span>/</span>
-          <span className="text-[#888]">Flow Graph</span>
+      <header className="flex items-center justify-between px-6 py-3.5 border-b border-[#21262d] shrink-0 bg-[#161b22]">
+        <div className="flex items-center gap-2 text-[14px]">
+          <Link to="/projects" className="text-[#8b949e] hover:text-[#e6edf3] transition-colors">Projects</Link>
+          <ChevronRight size={14} className="text-[#444c56]" />
+          <Link to={`/projects/${projectId}`} className="text-[#8b949e] hover:text-[#e6edf3] transition-colors">Project</Link>
+          <ChevronRight size={14} className="text-[#444c56]" />
+          <span className="text-[#e6edf3] font-medium">Flow Graph</span>
         </div>
         <button
-          onClick={() => buildGraph(projectId!, { onSuccess: (g) => console.log("built", g) })}
+          onClick={() => buildGraph(projectId!)}
           disabled={building}
-          className="flex items-center gap-1.5 text-xs font-semibold bg-white text-black px-3 py-1.5 rounded-lg disabled:opacity-40"
+          className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[14px] font-semibold px-4 py-2 rounded-xl disabled:opacity-40 transition-colors"
         >
-          {building ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+          {building ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />}
           {building ? "Building…" : "Build graph"}
         </button>
       </header>
@@ -42,17 +42,19 @@ export default function FlowGraphPage() {
       {/* Canvas area */}
       <div className="flex-1 relative">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center text-[#555] text-sm gap-2 z-10">
-            <Loader2 size={14} className="animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center text-[#8b949e] text-[15px] gap-3 z-10">
+            <Loader2 size={18} className="animate-spin" />
             Loading…
           </div>
         )}
 
         {(error || buildError) && !graph && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center p-8">
-            <AlertCircle size={32} className="text-[#333]" />
-            <p className="text-[#666] text-sm">No flow graph yet.</p>
-            <p className="text-[#444] text-xs">Build flows first, then click "Build graph" above.</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center p-8">
+            <AlertCircle size={40} className="text-[#30363d]" />
+            <div>
+              <p className="text-[#8b949e] text-[16px] font-medium mb-1">No flow graph yet</p>
+              <p className="text-[#6e7681] text-[14px]">Build flows first on the project page, then click "Build graph".</p>
+            </div>
           </div>
         )}
 
@@ -61,21 +63,22 @@ export default function FlowGraphPage() {
             nodes={rfNodes}
             edges={rfEdges}
             nodeTypes={nodeTypes}
+            persistKey={`graph:${projectId}`}
             onNodeClick={(id) => {
               const flow = graph.flows.find((f) => f.flow_id === id);
               if (flow) navigate(`/projects/${projectId}/flows/${flow.flow_id}`);
             }}
-            layoutConfig={{ direction: "LR", rankSep: 100, nodeSep: 60, nodeWidth: 220, nodeHeight: 100 }}
+            layoutConfig={{ direction: "LR", rankSep: 160, nodeSep: 80, nodeWidth: 260, nodeHeight: 110 }}
           />
         )}
       </div>
 
-      {/* Footer stats */}
+      {/* Footer */}
       {graph && (
-        <div className="px-5 py-2 border-t border-[#1a1a1a] flex items-center gap-6 text-[11px] text-[#444] shrink-0">
+        <div className="px-6 py-2.5 border-t border-[#21262d] bg-[#161b22] flex items-center gap-6 text-[13px] text-[#6e7681] shrink-0">
+          <span className="text-[#8b949e] font-medium">{graph.name}</span>
           <span>{graph.flows.length} flows</span>
           <span>{graph.connections.length} connections</span>
-          <span className="ml-auto">{graph.name}</span>
         </div>
       )}
     </div>

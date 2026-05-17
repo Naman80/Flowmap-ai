@@ -20,7 +20,8 @@
       "Bash(curl -s \"http://localhost:3001/api/flows?projectId=c5b099d4-404b-4bc2-8f69-237fa98aff80\")",
       "Bash(read id *)",
       "Bash(curl -s -X DELETE http://localhost:3001/api/flows/__TRACKED_VAR__)",
-      "Bash(curl -s -X POST http://localhost:3001/api/flows/build -H 'Content-Type: application/json' -d '{ *)"
+      "Bash(curl -s -X POST http://localhost:3001/api/flows/build -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(npm install *)"
     ]
   }
 }
